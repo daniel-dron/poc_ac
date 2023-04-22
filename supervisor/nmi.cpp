@@ -50,12 +50,28 @@ void process_nmi(pnmi_info nmii)
         utils::sleep(100);
     }
 
-    // add timeout and sus moment if timeout
+    LARGE_INTEGER start_time{};
+    LARGE_INTEGER end_time{};
+    ULONG start_seconds, end_seconds;
+    KeQuerySystemTime(&start_time);
+
     for (;;) {
         if (nmi_fired == 0)
             break;
+
+        KeQuerySystemTime(&end_time);
+
+        RtlTimeToSecondsSince1970(&start_time, &start_seconds);
+        RtlTimeToSecondsSince1970(&end_time, &end_seconds);
+
+        // timeout after 10 seconds
+        if(end_seconds - start_seconds > 10)
+            break;
+
         utils::sleep(1);
     }
+
+    nmii->n_timeouts = nmi_fired;
 
     if (!nmi_stack_traces) {
         nmii->freed_stack_traces_allocation = true;

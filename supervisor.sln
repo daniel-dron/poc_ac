@@ -5,8 +5,6 @@ VisualStudioVersion = 17.5.33424.131
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "supervisor", "supervisor\supervisor.vcxproj", "{941A6EF8-64A1-4D66-8B04-CBF97BF634D7}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sv_client", "sv_client\sv_client.vcxproj", "{575061C2-DBB7-4669-868C-0E651EC2CADA}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sv_standalone_client", "sv_standalone_client\sv_standalone_client.vcxproj", "{0CFAB540-D203-4979-B54F-B46E70DD4176}"
 	ProjectSection(ProjectDependencies) = postProject
 		{941A6EF8-64A1-4D66-8B04-CBF97BF634D7} = {941A6EF8-64A1-4D66-8B04-CBF97BF634D7}
@@ -40,18 +38,6 @@ Global
 		{941A6EF8-64A1-4D66-8B04-CBF97BF634D7}.Release|x86.ActiveCfg = Release|x64
 		{941A6EF8-64A1-4D66-8B04-CBF97BF634D7}.Release|x86.Build.0 = Release|x64
 		{941A6EF8-64A1-4D66-8B04-CBF97BF634D7}.Release|x86.Deploy.0 = Release|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Debug|ARM64.ActiveCfg = Debug|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Debug|ARM64.Build.0 = Debug|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Debug|x64.ActiveCfg = Debug|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Debug|x64.Build.0 = Debug|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Debug|x86.ActiveCfg = Debug|Win32
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Debug|x86.Build.0 = Debug|Win32
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Release|ARM64.ActiveCfg = Release|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Release|ARM64.Build.0 = Release|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Release|x64.ActiveCfg = Release|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Release|x64.Build.0 = Release|x64
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Release|x86.ActiveCfg = Release|Win32
-		{575061C2-DBB7-4669-868C-0E651EC2CADA}.Release|x86.Build.0 = Release|Win32
 		{0CFAB540-D203-4979-B54F-B46E70DD4176}.Debug|ARM64.ActiveCfg = Debug|x64
 		{0CFAB540-D203-4979-B54F-B46E70DD4176}.Debug|ARM64.Build.0 = Debug|x64
 		{0CFAB540-D203-4979-B54F-B46E70DD4176}.Debug|x64.ActiveCfg = Release|x64
