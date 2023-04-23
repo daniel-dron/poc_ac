@@ -66,11 +66,6 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
     return status;
 }
 
-__forceinline void *get_current_prcb()
-{
-    return (void *)__readgsqword(FIELD_OFFSET(KPCR, CurrentPrcb));
-}
-
 void initialize_svac() { nmi::setup_nmi(); }
 
 void driver_unload(PDRIVER_OBJECT driver_object)
