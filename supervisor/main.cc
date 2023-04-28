@@ -1,10 +1,15 @@
 
 #include "nmi.h"
+#include "sytem_threads.h"
 
 #define IOCTL_SCAN_KERNEL                                                      \
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL_GET_PROCESSORS_NUMBER                                            \
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x802, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define IOCTL_GET_INVALID_THREADS                                              \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, 0x803, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define IOCTL_GET_NEXT_INVALID_THREAD                                          \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, 0x804, METHOD_NEITHER, FILE_ANY_ACCESS)
 
 NTSTATUS dispatch_create_close(PDEVICE_OBJECT device_object, PIRP irp)
 {
@@ -26,6 +31,11 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
     PIO_STACK_LOCATION io_stack;
     nmi::_nmi_info *nmi_info;
     ULONG *n_processors;
+    ULONG64 n_invalid_threads{};
+    ULONG64 *n_invalid_threads_output{};
+
+    //
+    system_threads::pinvalid_system_thread ist{};
 
     io_stack = IoGetCurrentIrpStackLocation(irp);
 
@@ -55,6 +65,54 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
 
         irp->IoStatus.Status = status;
         irp->IoStatus.Information = 0;
+        break;
+    case IOCTL_GET_INVALID_THREADS:
+        n_invalid_threads = system_threads::scan_system_process_threads();
+
+        status = n_invalid_threads > 0 ? STATUS_SUCCESS : STATUS_INTERNAL_ERROR;
+
+        n_invalid_threads_output = reinterpret_cast<ULONG64 *>(
+            io_stack->Parameters.DeviceIoControl.Type3InputBuffer);
+
+        KdLog("invalid threads %lld\n", n_invalid_threads);
+        KdLog("output address 0x%p\n", n_invalid_threads_output);
+        KdLog("sizeof output address %lld\n",
+              io_stack->Parameters.DeviceIoControl.InputBufferLength);
+
+        if (n_invalid_threads_output &&
+            io_stack->Parameters.DeviceIoControl.InputBufferLength >=
+                sizeof(ULONG64))
+            *n_invalid_threads_output = n_invalid_threads;
+
+        irp->IoStatus.Status = status;
+        irp->IoStatus.Information = 0;
+        break;
+    case IOCTL_GET_NEXT_INVALID_THREAD:
+
+        ist = reinterpret_cast<system_threads::pinvalid_system_thread>(
+            io_stack->Parameters.DeviceIoControl.Type3InputBuffer);
+        if (system_threads::g_last_entry && MmIsAddressValid(ist) &&
+            io_stack->Parameters.DeviceIoControl.InputBufferLength >=
+                sizeof(system_threads::invalid_system_thread)) {
+
+            // If we are currently at the head, skip this one
+            if (system_threads::g_last_entry == system_threads::g_list_head)
+                system_threads::g_last_entry =
+                    system_threads::g_list_head->Flink;
+
+            system_threads::pinvalid_system_thread invalid_st =
+                CONTAINING_RECORD(system_threads::g_last_entry,
+                                  system_threads::invalid_system_thread, entry);
+
+            memmove(ist, invalid_st,
+                    sizeof(system_threads::invalid_system_thread));
+            
+            system_threads::g_last_entry = system_threads::g_last_entry->Flink;
+        }
+
+        irp->IoStatus.Status = status;
+        irp->IoStatus.Information = 0;
+        break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         irp->IoStatus.Status = status;
@@ -66,7 +124,12 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
     return status;
 }
 
-void initialize_svac() { nmi::setup_nmi(); }
+void initialize_svac()
+{
+    system_threads::scan_system_process_threads();
+
+    // nmi::setup_nmi();
+}
 
 void driver_unload(PDRIVER_OBJECT driver_object)
 {
@@ -114,7 +177,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
     driver_object->MajorFunction[IRP_MJ_DEVICE_CONTROL] = device_control;
 
-    initialize_svac();
+    // initialize_svac();
 
     return status;
 }

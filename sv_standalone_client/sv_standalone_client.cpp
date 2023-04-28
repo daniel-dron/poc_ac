@@ -10,9 +10,5 @@ int main()
     sv_service sv{};
     sv.load();
 
-    while (true)
-    {
-        sv.dispatch_kernel_detections();
-        Sleep(10);
-    }
+    sv.scan_system_threads();
 }

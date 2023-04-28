@@ -5,6 +5,37 @@
 #include <experimental/filesystem>
 #include <filesystem>
 
+typedef struct _invalid_system_thread
+{
+    HANDLE pid;
+    HANDLE tid;
+
+    void* thread;
+
+    bool unlinked_system_process;
+    bool unlinked_cid_table;
+    bool jmp_at_start_address;
+    bool invalid_system_thread_bit;
+
+    bool invalid_start_address;
+    ULONG64 start_address;
+    void* start_address_dump;
+    size_t sa_dump_size;
+
+    bool invalid_win32_start_address;
+    ULONG64 win32_start_address;
+    void* win32_start_address_dump;
+    size_t win32_sa_dump_size;
+
+    _LIST_ENTRY entry;
+} invalid_system_thread, *pinvalid_system_thread;
+
+typedef struct _system_threads_snapshot
+{
+    ULONG n;
+    invalid_system_thread entries[ANYSIZE_ARRAY];
+} system_threads_snapshot, *psystem_threads_snapshot;
+
 bool sv_service::create_service()
 {
     SC_HANDLE scm_handle =
@@ -33,25 +64,25 @@ bool sv_service::create_service()
 
 bool sv_service::load()
 {
-    namespace filesystem = std::experimental::filesystem::v1;
+    //namespace filesystem = std::experimental::filesystem::v1;
 
-    //
-    // Check if driver file exists
-    //
-    if (!filesystem::exists(driver_path))
-    {
-        log_error("Could not find svac.sys driver file. Aborting process.\n");
-        return false;
-    }
+    ////
+    //// Check if driver file exists
+    ////
+    //if (!filesystem::exists(driver_path))
+    //{
+    //    log_error("Could not find svac.sys driver file. Aborting process.\n");
+    //    return false;
+    //}
 
-    //
-    // Create service and start it
-    //
-    if (!create_service())
-    {
-        log_error("Failed to load service svac.\n");
-        return false;
-    }
+    ////
+    //// Create service and start it
+    ////
+    //if (!create_service())
+    //{
+    //    log_error("Failed to load service svac.\n");
+    //    return false;
+    //}
 
     //
     // Open a handle to the service
@@ -81,13 +112,36 @@ ULONG sv_service::get_number_of_processors()
     return n_processors;
 }
 
+void sv_service::scan_system_threads()
+{
+    DWORD returned{};
+    ULONG64 n_invalid_threads{};
+    DeviceIoControl(_handle, IOCTL_GET_INVALID_THREADS, &n_invalid_threads,
+                    sizeof(ULONG64),
+                    nullptr, 0, &returned, nullptr);
+
+    log_trace("stn returned -> %lld\n", n_invalid_threads);
+
+    if (n_invalid_threads == 0)
+        return;
+
+    for (int i = 0; i < n_invalid_threads; i++)
+    {
+        invalid_system_thread ist{};
+        DeviceIoControl(_handle, IOCTL_GET_NEXT_INVALID_THREAD, &ist,
+                        sizeof(invalid_system_thread), nullptr, 0, &returned,
+                        nullptr);
+        log_trace("thread 0x%p\n", ist.thread);
+    }
+}
+
 bool sv_service::dispatch_kernel_detections()
 {
     ULONG n = get_number_of_processors();
     SIZE_T allocation_size = sizeof(_nmi_info) + (sizeof(stack_ipp) * (n - 1));
     pnmi_info nmi_info = reinterpret_cast<pnmi_info>(
         VirtualAlloc(0, allocation_size, MEM_COMMIT, PAGE_READWRITE));
-    if(!nmi_info)
+    if (!nmi_info)
         return false;
 
     DWORD returned{};
@@ -100,7 +154,7 @@ bool sv_service::dispatch_kernel_detections()
     if (nmi_info->n_timeouts > 0)
         log_error("There were %d NMI timeouts!\n", nmi_info->n_timeouts);
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < n; i++)
     {
         if (nmi_info->stack_infos[i].n_captured_frames == 0 ||
             nmi_info->stack_infos[i].n_invalid_frames > 0)

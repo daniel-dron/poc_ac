@@ -103,11 +103,16 @@
   <ItemGroup>
     <ClCompile Include="main.cc" />
     <ClCompile Include="nmi.cpp" />
+    <ClCompile Include="system_threads.cc" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="big_pools.h" />
     <ClInclude Include="definitions.h" />
     <ClInclude Include="nmi.h" />
+    <ClInclude Include="offsets.h" />
+    <ClInclude Include="stack_walk.h" />
+    <ClInclude Include="sytem_threads.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

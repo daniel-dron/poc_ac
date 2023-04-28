@@ -16,15 +16,22 @@ BOOLEAN nmi_callback(PVOID context, BOOLEAN handled)
 
     void **stack_trace = reinterpret_cast<void **>(
         ExAllocatePoolZero(NonPagedPool, 0x1000, 'thrd'));
+
     if (stack_trace) {
-        USHORT capturedFrames =
-            RtlCaptureStackBackTrace(0, 0x1000 / 8, stack_trace, NULL);
+        __try {
+            USHORT capturedFrames =
+                RtlCaptureStackBackTrace(0, 0x1000 / 8, stack_trace, NULL);
 
-        ULONG i = KeGetCurrentProcessorNumber();
+            ULONG i = KeGetCurrentProcessorNumber();
 
-        if (nmi_stack_traces && nmi_stack_traces[i].stack_trace == 0) {
-            nmi_stack_traces[i].stack_trace = stack_trace;
-            nmi_stack_traces[i].captured_frames = capturedFrames;
+            if (nmi_stack_traces && nmi_stack_traces[i].stack_trace == 0) {
+                nmi_stack_traces[i].stack_trace = stack_trace;
+                nmi_stack_traces[i].captured_frames = capturedFrames;
+            }
+        }
+        __except (1) {
+            KdLog("NmiCallback exception on processor %d\n",
+                  KeGetCurrentProcessorNumber());
         }
     }
 
@@ -65,7 +72,7 @@ void process_nmi(pnmi_info nmii)
         RtlTimeToSecondsSince1970(&end_time, &end_seconds);
 
         // timeout after 10 seconds
-        if(end_seconds - start_seconds > 10)
+        if (end_seconds - start_seconds > 10)
             break;
 
         utils::sleep(1);
@@ -95,11 +102,9 @@ void process_nmi(pnmi_info nmii)
         for (int j = 0; j < captured_frames; j++) {
             void *frame_value = stack_trace[j];
 
-            // do not care about usermode frames
             if (reinterpret_cast<UINT64>(frame_value) < 0xFFFF000000000000)
                 continue;
 
-            // TODO: check valid module frame_value
             if (!utils::in_valid_module(
                     reinterpret_cast<UINT64>(frame_value))) {
                 nmii->stack_infos[i].invalid_frames[counter] = frame_value;
