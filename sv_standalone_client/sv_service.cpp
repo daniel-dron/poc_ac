@@ -5,6 +5,10 @@
 #include <experimental/filesystem>
 #include <filesystem>
 
+#include <iostream>
+#include <fstream>
+#include <random>
+
 typedef struct _invalid_system_thread
 {
     HANDLE pid;
@@ -64,25 +68,25 @@ bool sv_service::create_service()
 
 bool sv_service::load()
 {
-    //namespace filesystem = std::experimental::filesystem::v1;
+    // namespace filesystem = std::experimental::filesystem::v1;
 
     ////
     //// Check if driver file exists
     ////
-    //if (!filesystem::exists(driver_path))
+    // if (!filesystem::exists(driver_path))
     //{
-    //    log_error("Could not find svac.sys driver file. Aborting process.\n");
-    //    return false;
-    //}
+    //     log_error("Could not find svac.sys driver file. Aborting
+    //     process.\n"); return false;
+    // }
 
     ////
     //// Create service and start it
     ////
-    //if (!create_service())
+    // if (!create_service())
     //{
-    //    log_error("Failed to load service svac.\n");
-    //    return false;
-    //}
+    //     log_error("Failed to load service svac.\n");
+    //     return false;
+    // }
 
     //
     // Open a handle to the service
@@ -112,13 +116,79 @@ ULONG sv_service::get_number_of_processors()
     return n_processors;
 }
 
+typedef struct _dump_bigpool_req
+{
+    UCHAR* dump;
+    void* base;
+    size_t size;
+
+} dump_bigpool_req, *pdump_bigpool_req;
+
+#include <iomanip>
+void printCharArrayInHex(const char* charArray, int length)
+{
+    for (int i = 0; i < length; ++i)
+    {
+        std::cout << std::setfill('0') << std::setw(2) << std::hex
+             << (int)(unsigned char)charArray[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+std::string generateRandomString(int n)
+{
+    static const char alphanum[] = "0123456789"
+                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                   "abcdefghijklmnopqrstuvwxyz";
+
+    std::string randomString = "";
+    std::mt19937 generator{std::random_device{}()};
+    std::uniform_int_distribution<int> distribution(0, sizeof(alphanum) - 1);
+
+    for (int i = 0; i < n; ++i)
+    {
+        randomString += alphanum[distribution(generator)];
+    }
+
+    randomString.append(".sys");
+
+    return randomString;
+}
+
+void sv_service::dump_big_pool(void* base, size_t size)
+{
+    UCHAR* dump = new UCHAR[size];
+
+    dump_bigpool_req dbpr{dump, base, size};
+
+    DWORD returned{};
+    DeviceIoControl(_handle, IOCTL_DUMP_BIGPOOL, &dbpr, sizeof(dbpr), nullptr, 0, &returned, nullptr);
+
+    log_trace("dump 0x%p", *(ULONG64*)dump);
+
+    std::ofstream outfile(generateRandomString(10).c_str(),
+                          std::ios::out | std::ios::binary);
+
+    if (!outfile)
+    {
+        std::cerr << "Failed to open output file" << std::endl;
+        return;
+    }
+
+    outfile.write(reinterpret_cast<const char*>(dump), size);
+    outfile.close();
+
+    printCharArrayInHex((const char*)dump, size);
+
+    delete[] dump;
+}
+
 void sv_service::scan_system_threads()
 {
     DWORD returned{};
     ULONG64 n_invalid_threads{};
     DeviceIoControl(_handle, IOCTL_GET_INVALID_THREADS, &n_invalid_threads,
-                    sizeof(ULONG64),
-                    nullptr, 0, &returned, nullptr);
+                    sizeof(ULONG64), nullptr, 0, &returned, nullptr);
 
     log_trace("stn returned -> %lld\n", n_invalid_threads);
 
@@ -131,7 +201,37 @@ void sv_service::scan_system_threads()
         DeviceIoControl(_handle, IOCTL_GET_NEXT_INVALID_THREAD, &ist,
                         sizeof(invalid_system_thread), nullptr, 0, &returned,
                         nullptr);
-        log_trace("thread 0x%p\n", ist.thread);
+        if (ist.thread)
+        {
+            printf("==========================================================="
+                   "==================\n");
+            log_trace("# THREAD [0x%p][0x%p]\n", ist.pid, ist.tid);
+            log_trace("\tUnlinked from system process: %d\n",
+                      ist.unlinked_system_process);
+            log_trace("\tUnlinked from CID table: %d\n",
+                      ist.unlinked_cid_table);
+            log_trace("\tJump at start address: %d\n",
+                      ist.jmp_at_start_address);
+            log_trace("\tInvalid system thread bit: %d\n",
+                      ist.invalid_system_thread_bit);
+            log_trace("\n");
+            log_trace("\tInvalid start address: %d\n",
+                      ist.invalid_start_address);
+            log_trace("\t\tStart address: 0x%p\n", ist.start_address);
+            log_trace("\t\tStart address dump: 0x%p\n", ist.start_address_dump);
+            log_trace("\t\tDump size: %lld\n", ist.sa_dump_size);
+
+            log_trace("\n");
+            log_trace("\tInvalid win32 start address: %d\n",
+                      ist.invalid_win32_start_address);
+            log_trace("\t\tStart win32 address: 0x%p\n",
+                      ist.win32_start_address);
+            log_trace("\t\tStart win32 address dump: 0x%p\n",
+                      ist.win32_start_address_dump);
+            log_trace("\t\tDump size: %lld\n", ist.win32_sa_dump_size);
+
+            dump_big_pool(ist.start_address_dump, ist.sa_dump_size);
+        }
     }
 }
 

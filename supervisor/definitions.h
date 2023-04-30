@@ -1668,6 +1668,28 @@ typedef struct _RTL_PROCESS_MODULES {
     RTL_PROCESS_MODULE_INFORMATION Modules[1];
 } RTL_PROCESS_MODULES, *PRTL_PROCESS_MODULES;
 
+// from
+// http://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/bigpool_entry.htm
+typedef struct _SYSTEM_BIGPOOL_ENTRY {
+    union {
+        uintptr_t VirtualAddress;
+        ULONG_PTR NonPaged : 1;
+    };
+    ULONG_PTR SizeInBytes;
+    union {
+        UCHAR Tag[4];
+        ULONG TagUlong;
+    };
+} SYSTEM_BIGPOOL_ENTRY, *PSYSTEM_BIGPOOL_ENTRY;
+
+// from
+// http://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/bigpool.htm
+typedef struct _SYSTEM_BIGPOOL_INFORMATION {
+    ULONG Count;
+    SYSTEM_BIGPOOL_ENTRY AllocatedInfo[ANYSIZE_ARRAY];
+} SYSTEM_BIGPOOL_INFORMATION, *PSYSTEM_BIGPOOL_INFORMATION;
+
+
 extern "C" NTSTATUS
 ZwQuerySystemInformation(_SYSTEM_INFORMATION_CLASS SystemInformationClass,
                          PVOID SystemInformation, ULONG SystemInformationLength,

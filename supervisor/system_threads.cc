@@ -101,6 +101,9 @@ bool validate_system_thread(_ETHREAD *thread, _LIST_ENTRY *head)
         ist->jmp_at_start_address || ist->invalid_system_thread_bit ||
         ist->invalid_start_address || ist->invalid_win32_start_address) {
         ist->thread = reinterpret_cast<PETHREAD>(thread);
+
+        stack_walk::test_get_context((PETHREAD)thread);
+
         InsertTailList(head, &ist->entry);
         return true;
     }
@@ -140,9 +143,6 @@ ULONG64 scan_system_process_threads()
 
     _LIST_ENTRY *thread_list_head = reinterpret_cast<_LIST_ENTRY *>(
         (reinterpret_cast<ULONG64>(process) + get_offset(thread_list_head)));
-
-    KdLog("EPROCESS system at 0x%p\n", process);
-    KdLog("thread_list_head at 0x%p\n", thread_list_head);
 
     big_pools::query_bigpools();
 

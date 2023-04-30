@@ -10,6 +10,8 @@
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x803, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL_GET_NEXT_INVALID_THREAD                                          \
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x804, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define IOCTL_DUMP_BIGPOOL                                                     \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 NTSTATUS dispatch_create_close(PDEVICE_OBJECT device_object, PIRP irp)
 {
@@ -22,6 +24,13 @@ NTSTATUS dispatch_create_close(PDEVICE_OBJECT device_object, PIRP irp)
     IoCompleteRequest(irp, IO_NO_INCREMENT);
     return status;
 }
+
+typedef struct _dump_bigpool_req {
+    UCHAR *dump;
+    void *base;
+    size_t size;
+
+} dump_bigpool_req, *pdump_bigpool_req;
 
 NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
 {
@@ -40,6 +49,26 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
     io_stack = IoGetCurrentIrpStackLocation(irp);
 
     switch (io_stack->Parameters.DeviceIoControl.IoControlCode) {
+    case IOCTL_DUMP_BIGPOOL:
+
+        KdLog("InputBufferLength 0x%p\n",
+              io_stack->Parameters.DeviceIoControl.InputBufferLength);
+        KdLog("OutputBufferLength 0x%p\n",
+              io_stack->Parameters.DeviceIoControl.OutputBufferLength);
+        KdLog("Type3InputBuffer 0x%p\n",
+              io_stack->Parameters.DeviceIoControl.Type3InputBuffer);
+        KdLog("SystemBuffer 0x%p\n", irp->AssociatedIrp.SystemBuffer);
+
+        KdLog("DumpAddress 0x%p\n",
+              ((pdump_bigpool_req)irp->AssociatedIrp.SystemBuffer)->base);
+        KdLog("DumpSize %lld\n",
+              ((pdump_bigpool_req)irp->AssociatedIrp.SystemBuffer)->size);
+
+        memcpy(((pdump_bigpool_req)irp->AssociatedIrp.SystemBuffer)->dump,
+               ((pdump_bigpool_req)irp->AssociatedIrp.SystemBuffer)->base,
+               ((pdump_bigpool_req)irp->AssociatedIrp.SystemBuffer)->size);
+
+        break;
     case IOCTL_SCAN_KERNEL:
         nmi_info = reinterpret_cast<nmi::_nmi_info *>(
             io_stack->Parameters.DeviceIoControl.Type3InputBuffer);
@@ -74,11 +103,6 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
         n_invalid_threads_output = reinterpret_cast<ULONG64 *>(
             io_stack->Parameters.DeviceIoControl.Type3InputBuffer);
 
-        KdLog("invalid threads %lld\n", n_invalid_threads);
-        KdLog("output address 0x%p\n", n_invalid_threads_output);
-        KdLog("sizeof output address %lld\n",
-              io_stack->Parameters.DeviceIoControl.InputBufferLength);
-
         if (n_invalid_threads_output &&
             io_stack->Parameters.DeviceIoControl.InputBufferLength >=
                 sizeof(ULONG64))
@@ -106,7 +130,7 @@ NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp)
 
             memmove(ist, invalid_st,
                     sizeof(system_threads::invalid_system_thread));
-            
+
             system_threads::g_last_entry = system_threads::g_last_entry->Flink;
         }
 
@@ -177,7 +201,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
     driver_object->MajorFunction[IRP_MJ_DEVICE_CONTROL] = device_control;
 
-    // initialize_svac();
+    initialize_svac();
 
     return status;
 }

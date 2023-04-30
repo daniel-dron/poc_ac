@@ -10,6 +10,8 @@
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x803, METHOD_NEITHER, FILE_ANY_ACCESS)
 #define IOCTL_GET_NEXT_INVALID_THREAD                                          \
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x804, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define IOCTL_DUMP_BIGPOOL                                                     \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 class sv_service
 {
@@ -50,6 +52,7 @@ public:
     bool dispatch_kernel_detections();
     ULONG get_number_of_processors();
     void scan_system_threads();
+    void dump_big_pool(void* base, size_t size);
     bool hearbeat();
 };
 

@@ -1,6 +1,6 @@
 ---
 # BasedOnStyle:  LLVM
-SortIncludes: Never
+SortIncludes: false
 AccessModifierOffset: -4 # -2
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false
